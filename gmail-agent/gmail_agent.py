@@ -18,7 +18,7 @@ from googleapiclient.discovery import build
 
 # ─── CONFIG ──────────────────────────────────────────────────────────────────
 
-AI_BRAIN_FOLDER  = os.path.expanduser("~/ai-brain")   # folder of .md context files
+AI_BRAIN_FOLDER  = os.path.expanduser("~/Documents/AI Brain")
 CREDENTIALS_FILE = "credentials.json"                  # from Google Cloud Console
 TOKEN_FILE       = "token.json"                        # auto-created on first run
 MAX_EMAILS       = 20                                  # max unread emails to process per run
