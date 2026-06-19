@@ -90,7 +90,7 @@ def get_gmail_service():
 # ─── EMAIL FETCHING ───────────────────────────────────────────────────────────
 
 def get_unread_emails(service, max_results=MAX_EMAILS):
-    query = f"is:unread -label:{PROCESSED_LABEL}"
+    query = f'is:unread -label:{PROCESSED_LABEL} (in:inbox OR label:"follow up")'
     result = service.users().messages().list(
         userId="me", q=query, maxResults=max_results
     ).execute()
