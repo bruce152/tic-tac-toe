@@ -135,6 +135,34 @@ def parse_email(message):
     }
 
 
+# ─── SENT EMAIL SAMPLES ──────────────────────────────────────────────────────
+
+def get_sent_samples(service, max_results=10):
+    """Return a block of recent sent email bodies to use as tone-of-voice examples."""
+    result = service.users().messages().list(
+        userId="me", q="in:sent", maxResults=max_results
+    ).execute()
+    refs = result.get("messages", [])
+
+    samples = []
+    for ref in refs:
+        try:
+            msg = service.users().messages().get(
+                userId="me", id=ref["id"], format="full"
+            ).execute()
+            body = extract_body(msg["payload"])[:600].strip()
+            if body:
+                samples.append(body)
+        except Exception:
+            continue
+
+    if not samples:
+        return ""
+
+    joined = "\n\n---\n\n".join(samples)
+    return f"--- EXAMPLES OF MY PREVIOUS EMAIL REPLIES (for tone and style reference) ---\n\n{joined}\n\n--- END EXAMPLES ---"
+
+
 # ─── TRIAGE ───────────────────────────────────────────────────────────────────
 
 def triage_email(client, email):
@@ -207,20 +235,21 @@ def load_context_files(keywords, category):
 
 # ─── DRAFT GENERATION ─────────────────────────────────────────────────────────
 
-def draft_reply(client, email, triage, context_docs):
+def draft_reply(client, email, triage, context_docs, sent_samples=""):
     system = (
         f"You are {MY_NAME}, {MY_ROLE} of {COMPANY}. "
         f"{COMPANY_CONTEXT} "
         f"Write a reply as {MY_NAME}. "
-        f"Be direct and professional. Do not add sign-off — the user will review before sending."
+        f"Match the tone, vocabulary, and sentence length shown in the example replies below — "
+        f"do not be more formal or more casual than those examples. "
+        f"Do not add a sign-off — the user will review before sending."
     )
 
-    context_section = ""
-    if context_docs:
-        context_section = f"\n\n--- CONTEXT FROM AI BRAIN ---\n{context_docs}\n--- END CONTEXT ---"
+    samples_section = f"\n\n{sent_samples}" if sent_samples else ""
+    context_section = f"\n\n--- CONTEXT FROM AI BRAIN ---\n{context_docs}\n--- END CONTEXT ---" if context_docs else ""
 
     user_prompt = (
-        f"Please draft a reply to the following email.{context_section}\n\n"
+        f"Please draft a reply to the following email.{samples_section}{context_section}\n\n"
         f"From: {email['from']}\n"
         f"Subject: {email['subject']}\n"
         f"Date: {email['date']}\n\n"
@@ -296,6 +325,9 @@ def main():
 
     label_id = ensure_label(service, PROCESSED_LABEL)
 
+    print("Loading sent email samples for tone reference...")
+    sent_samples = get_sent_samples(service)
+
     messages = get_unread_emails(service)
     if not messages:
         print("No unread emails to process.")
@@ -329,7 +361,7 @@ def main():
                     triage.get("context_keywords", []),
                     triage.get("category", ""),
                 )
-                reply_text = draft_reply(client, email, triage, context_docs)
+                reply_text = draft_reply(client, email, triage, context_docs, sent_samples)
                 draft_id   = create_gmail_draft(service, email, reply_text)
                 print(f"  → draft saved (id={draft_id})")
 
